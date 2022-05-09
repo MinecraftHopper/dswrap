@@ -1,0 +1,17 @@
+[package]
+name = "mcpaste"
+version = "1.0.0"
+edition = "2021"
+authors = ["valkyrie_pilot <valk@randomairborne.dev>"]
+license = "GPL-3.0"
+readme = "README.md"
+
+[dependencies]
+axum = { version = "0.5", features = ["http1"], default-features = false }
+dotenv = "0.15"
+reqwest = { version = "0.11", features = ["native-tls", "stream"], default-features = false }
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros"]}
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
