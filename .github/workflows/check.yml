@@ -1,3 +1,4 @@
+name: Cargo Check
 on:
   push:
     branches: [ master ]
