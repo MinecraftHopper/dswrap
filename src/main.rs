@@ -12,11 +12,6 @@ use axum::{
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
-    let port: u16 = std::env::var("PORT")
-        .expect("PORT must be set to run the pastebin")
-        .parse()
-        .expect("PORT invalid");
     let http_client = reqwest::Client::builder()
         .referer(false)
         .user_agent(concat!(
@@ -35,7 +30,7 @@ async fn main() {
             "/:channelid/:messageid/:filename",
             get(move |path| get_file(path, http_client)),
         );
-    let listen = SocketAddr::from(([0, 0, 0, 0], port));
+    let listen = SocketAddr::from(([0, 0, 0, 0], 63463));
     println!("[INFO] Listening on http://{}", &listen);
     axum::Server::bind(&listen)
         .serve(app.into_make_service())
@@ -92,7 +87,6 @@ impl axum::response::IntoResponse for Error {
                 format!("Discord returned an error: {:?}", e),
                 StatusCode::INTERNAL_SERVER_ERROR,
             ),
-
             Error::NotFound => ("404 paste not found".to_string(), StatusCode::NOT_FOUND),
         };
         axum::response::Response::builder()
