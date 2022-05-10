@@ -1,5 +1,7 @@
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
+use std::net::SocketAddr;
+
 use axum::{
     body::StreamBody,
     extract::Path,
@@ -11,14 +13,10 @@ use axum::{
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    let listen: std::net::SocketAddr = std::env::var("LISTEN_ADDRESS")
-        .expect("LISTEN_ADDRESS must be set to run the pastebin")
+    let port: u16 = std::env::var("PORT")
+        .expect("PORT must be set to run the pastebin")
         .parse()
-        .expect("LISTEN_ADDRESS invalid");
-    let root_resp = Redirect::permanent(
-        &std::env::var("ROOT_REDIRECT")
-            .unwrap_or_else(|_| "https://github.com/randomairborne/mcpaste".to_string()),
-    );
+        .expect("PORT invalid");
     let http_client = reqwest::Client::builder()
         .referer(false)
         .user_agent(concat!(
@@ -29,11 +27,15 @@ async fn main() {
         .build()
         .expect("Failed to create HTTP client");
     let app = axum::Router::new()
-        .route("/", get(|| async { root_resp }))
         .route(
-            "/:cid/:mid/:filename",
+            "/",
+            get(|| async { Redirect::permanent("https://github.com/minecrafthopper/dswrap") }),
+        )
+        .route(
+            "/:channelid/:messageid/:filename",
             get(move |path| get_file(path, http_client)),
         );
+    let listen = SocketAddr::from(([0, 0, 0, 0], port));
     println!("[INFO] Listening on http://{}", &listen);
     axum::Server::bind(&listen)
         .serve(app.into_make_service())
@@ -42,13 +44,13 @@ async fn main() {
 }
 
 async fn get_file(
-    Path((cid, mid, filename)): Path<(String, String, String)>,
+    Path((channelid, messageid, filename)): Path<(String, String, String)>,
     http: reqwest::Client,
 ) -> Result<impl IntoResponse, Error> {
     let req = http
         .get(format!(
             "https://cdn.discordapp.net/attachments/{}/{}/{}",
-            cid, mid, filename
+            channelid, messageid, filename
         ))
         .build()?;
     let resp = http.execute(req).await?;
@@ -58,10 +60,7 @@ async fn get_file(
         let backup_value = HeaderValue::from_static("application/octet-stream");
         head.insert(
             "Content-Type",
-            headers
-                .get("Content-Type")
-                .unwrap_or_else(|| &backup_value)
-                .clone(),
+            headers.get("Content-Type").unwrap_or(&backup_value).clone(),
         );
         head
     };
