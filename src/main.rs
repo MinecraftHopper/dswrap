@@ -30,7 +30,7 @@ async fn main() {
             "/:channelid/:messageid/:filename",
             get(move |path| get_file(path, http_client)),
         );
-    let listen = SocketAddr::from(([0, 0, 0, 0], 63463));
+    let listen = SocketAddr::from(([0, 0, 0, 0], 8080));
     println!("[INFO] Listening on http://{}", &listen);
     axum::Server::bind(&listen)
         .serve(app.into_make_service())

@@ -12,6 +12,6 @@ FROM alpine
 
 COPY --from=builder /build/target/release/mcpaste /bin/mcpaste
 
-EXPOSE 63463
+EXPOSE 8080
 
 CMD ["/bin/mcpaste"]
