@@ -52,8 +52,9 @@ func main() {
 			fmt.Fprintln(w, "An error occured reading the contents of the response")
 			return
 		}
-		clean_contents := string(strings.Replace(strings.Replace(contents, "\r\n", template.HTML("<br>"), -1), "\n", template.HTML("<br>") -1))
-		err = tmpl.Execute(w, string(contents).Replace().Replace())
+		escaped := template.HTMLEscapeString(string(contents))
+		corrected := strings.Replace(escaped, "\n", "<br>", -1)
+		tmpl.Execute(w, template.HTML(corrected))
 		if err != nil {
 			log.Println(err)
 			fmt.Fprintln(w, "An error occured templating the response")
