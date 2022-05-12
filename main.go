@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
 	"io"
@@ -12,26 +11,19 @@ import (
 )
 
 func main() {
-	file, err := os.Open("paste.html")
+	file, err := os.ReadFile("paste.html")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
 
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(file)
-	contents := buf.String()
+	contents := string(file)
 	tmpl, err := template.New("paste").Parse(contents)
 
-	file, err = os.Open("404.html")
+	file, err = os.ReadFile("404.html")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
-
-	buf = new(bytes.Buffer)
-	buf.ReadFrom(file)
-	notfound := buf.String()
+	notfound := string(file)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		req, err := http.Get("https://cdn.discordapp.com/attachments" + r.URL.Path)
