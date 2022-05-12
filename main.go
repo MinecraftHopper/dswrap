@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -51,7 +52,8 @@ func main() {
 			fmt.Fprintln(w, "An error occured reading the contents of the response")
 			return
 		}
-		err = tmpl.Execute(w, string(contents))
+		clean_contents := string(strings.Replace(strings.Replace(contents, "\r\n", template.HTML("<br>"), -1), "\n", template.HTML("<br>") -1))
+		err = tmpl.Execute(w, string(contents).Replace().Replace())
 		if err != nil {
 			log.Println(err)
 			fmt.Fprintln(w, "An error occured templating the response")
