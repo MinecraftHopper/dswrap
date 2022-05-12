@@ -1,0 +1,15 @@
+name: Go check build
+on: [push, pull_request]
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code into the proper directory
+        uses: actions/checkout@v1
+
+      - name: Set up go
+        uses: actions/setup-go@v3
+      - run: go build ./main.go
