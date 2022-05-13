@@ -3,6 +3,9 @@ services:
   updatejson:
     image: ghcr.io/minecrafthopper/dswrap
     restart: always
+    networks:
+      - default
+      - ingress_default
     deploy:
       placement:
         constraints:
@@ -13,3 +16,7 @@ services:
         - "traefik.http.routers.dswrap.entrypoints=websecure"
         - "traefik.http.routers.dswrap.tls.certresolver=myresolver"
         - "traefik.http.services.dswrap.loadbalancer.server.port=8080"
+
+networks:
+  ingress_default:
+    external: true
