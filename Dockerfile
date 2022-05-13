@@ -1,17 +1,17 @@
-FROM rust:alpine AS builder
+FROM golang:alpine AS builder
 
 WORKDIR /build
-COPY . .
+COPY ./main.go ./main.go
 
-RUN apk add musl-dev openssl-dev
-
-ENV RUSTFLAGS="--emit=asm"
-RUN cargo build --release
+RUN go build -o dswrap ./main.go
 
 FROM alpine
 
-COPY --from=builder /build/target/release/mcpaste /bin/mcpaste
+WORKDIR /dswrap
+
+COPY --from=builder /build/dswrap /dswrap/dswrap
+COPY ./404.html ./paste.html /dswrap/
 
 EXPOSE 8080
 
-CMD ["/bin/mcpaste"]
+CMD ["/dswrap/dswrap"]

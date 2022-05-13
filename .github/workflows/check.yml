@@ -1,22 +1,14 @@
-name: Cargo Check
-on:
-  push:
-    branches: [ master, main ]
-  pull_request:
-    branches: [ master, main ]
+name: PR validation
+on: [pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Check out code into the proper directory
+        uses: actions/checkout@v1
 
-      - name: Cache Packages
-        uses: Swatinem/rust-cache@v1.0.1
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - name: Set up go
+        uses: actions/setup-go@v3
+      - run: go build ./main.go
