@@ -1,6 +1,5 @@
-name: Go check build
-on: [push, pull_request]
-
+name: PR validation
+on: [pull_request]
 
 jobs:
   build:
