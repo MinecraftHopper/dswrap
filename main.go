@@ -33,13 +33,13 @@ func main() {
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
 	req, err := http.Get("https://cdn.discordapp.com/attachments" + r.URL.Path)
-	defer req.Body.Close()
-
 	if err != nil {
 		log.Println(err)
 		_, _ = fmt.Fprintln(w, "An error occurred fetching from the discord api")
 		return
 	}
+
+	defer req.Body.Close()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
