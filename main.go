@@ -97,6 +97,11 @@ func getFileForMessageAttachment(channelId, messageId, filename string) (file *D
 	}
 	defer response.Body.Close()
 
+	if response.StatusCode != http.StatusOK {
+		err = errors.New("unexpected status code: " + response.Status)
+		return
+	}
+
 	var msg DiscordMessage
 	err = json.NewDecoder(response.Body).Decode(&msg)
 	if err != nil {
