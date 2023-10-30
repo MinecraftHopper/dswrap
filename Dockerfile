@@ -3,14 +3,16 @@ FROM golang:alpine AS builder
 WORKDIR /build
 COPY ./main.go ./main.go
 
-RUN go build -o dswrap ./main.go
+RUN go build -o dswrap github.com/minecrafthopper/dswrap
 
 FROM alpine
 
 WORKDIR /dswrap
 
 COPY --from=builder /build/dswrap /dswrap/dswrap
-COPY ./404.html ./paste.html /dswrap/
+
+ENV DISCORD_TOKEN="" \
+    DISCORD_TOKEN_FILE=""
 
 EXPOSE 8080
 

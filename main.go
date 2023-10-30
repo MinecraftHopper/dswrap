@@ -2,83 +2,165 @@ package main
 
 import (
 	"bytes"
+	"embed"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/minecrafthopper/dswrap/env"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
-	"os"
+	"net/url"
+	"strconv"
 	"strings"
+	"time"
 	"unicode/utf16"
 	"unicode/utf8"
 )
 
 var contentTemplate *template.Template
+var client *http.Client
+
+//go:embed *.html
+var pasteHtml embed.FS
+
+var cache = make(map[string]*DiscordFile)
 
 func main() {
-	file, err := os.ReadFile("paste.html")
-	if err != nil {
-		log.Fatal(err)
-	}
+	client = &http.Client{}
 
-	contents := string(file)
-	contentTemplate, err = template.New("paste").Parse(contents)
+	e := gin.Default()
 
-	file, err = os.ReadFile("404.html")
-	if err != nil {
-		log.Fatal(err)
-	}
+	templ := template.Must(template.New("pastes").Delims("{{", "}}").ParseFS(pasteHtml, "*"))
+	e.SetHTMLTemplate(templ)
 
-	http.HandleFunc("/", handleRequest)
-	log.Println("Listening on port 8080")
-	_ = http.ListenAndServe(":8080", nil)
+	e.GET("/*path", handleRequest)
+	e.Run()
 }
 
-func handleRequest(w http.ResponseWriter, r *http.Request) {
-	req, err := http.Get("https://cdn.discordapp.com/attachments" + r.URL.Path)
-	if err != nil {
-		log.Println(err)
-		_, _ = fmt.Fprintln(w, "An error occurred fetching from the discord api")
+func handleRequest(c *gin.Context) {
+	path := strings.TrimPrefix(c.Param("path"), "/")
+
+	parts := strings.Split(path, "/")
+
+	if len(parts) < 3 {
+		c.Status(http.StatusNotFound)
 		return
 	}
 
-	defer req.Body.Close()
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	chanId := parts[0]
+	messageId := parts[1]
+	filename := parts[2]
 
-	if req.StatusCode != http.StatusOK {
-		_, _ = fmt.Fprintf(w, "File not found or discord error")
-		return
-	}
-	contents, err := io.ReadAll(req.Body)
-	if err != nil {
-		log.Println(err)
-		_, _ = fmt.Fprintln(w, "An error occurred reading the contents of the response")
-		return
-	}
-	ctype_encoding := strings.Split(req.Header.Get("Content-Type"), ";%20")
-	if strings.ToLower(ctype_encoding[len(ctype_encoding)-1]) == "charset=utf-16" {
-		contents, err = DecodeUTF16(contents)
+	var discordFile *DiscordFile
+	var err error
+	var exists bool
+
+	if discordFile, exists = cache[path]; !exists || discordFile.ExpireAt.Before(time.Now()) {
+		discordFile, err = getFileForMessageAttachment(chanId, messageId, filename)
 		if err != nil {
-			log.Println(err)
-			fmt.Fprintln(w, "An error occurred decoding the response")
+			return
+		}
+		cache[path] = discordFile
+	}
+
+	if discordFile == nil || discordFile.Url == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	contents, err := getFileFromCDN(discordFile.Url)
+	if err != nil {
+		return
+	}
+
+	escaped := template.HTMLEscapeString(string(contents))
+	escaped = strings.Replace(escaped, "\n", "<br>", -1)
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.HTML(http.StatusOK, "paste.html", gin.H{"body": template.HTML(escaped)})
+}
+
+func getFileForMessageAttachment(channelId, messageId, filename string) (file *DiscordFile, err error) {
+	request := &http.Request{Header: make(http.Header)}
+	request.Header.Add("Authorization", "Bot "+env.Get("discord.token"))
+	request.URL, err = url.Parse(fmt.Sprintf("https://discord.com/api/v%s/channels/%s/messages/%s", env.GetOr("discord.api.version", "10"), channelId, messageId))
+	if err != nil {
+		return
+	}
+
+	var response *http.Response
+	response, err = client.Do(request)
+	if err != nil {
+		return
+	}
+	defer response.Body.Close()
+
+	var msg DiscordMessage
+	err = json.NewDecoder(response.Body).Decode(&msg)
+	if err != nil {
+		return
+	}
+
+	for _, v := range msg.Attachments {
+		if v.Filename == filename {
+			expireAt := time.Now()
+
+			u := v.Url
+			var ur *url.URL
+			ur, err = url.Parse(u)
+			if err == nil {
+				ex := ur.Query().Get("ex")
+				var epoch int64
+				epoch, err = strconv.ParseInt(ex, 16, 32)
+				if err != nil {
+					return
+				}
+				expireAt = time.Unix(epoch, 0)
+			}
+
+			file = &DiscordFile{
+				Url:      v.Url,
+				ExpireAt: expireAt,
+			}
 			return
 		}
 	}
-	escaped := template.HTMLEscapeString(string(contents))
-	corrected := strings.Replace(escaped, "\n", "<br>", -1)
 
-	err = contentTemplate.Execute(w, template.HTML(corrected))
+	return
+}
+
+func getFileFromCDN(path string) ([]byte, error) {
+	req, err := http.Get(path)
 	if err != nil {
-		log.Println(err)
-		fmt.Fprintln(w, "An error occurred templating the response")
-		return
+		return nil, err
 	}
+
+	defer req.Body.Close()
+
+	if req.StatusCode != http.StatusOK {
+		return nil, errors.New("invalid status code: " + req.Status)
+	}
+	contents, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	fileEncoding := req.Header.Get("Content-Type")
+	if strings.Contains(strings.ToLower(fileEncoding), "charset=utf-16") {
+		contents, err = DecodeUTF16(contents)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return contents, nil
 }
 
 func DecodeUTF16(b []byte) ([]byte, error) {
-
 	if len(b)%2 != 0 {
-		return make([]byte, 0), fmt.Errorf("Must have even length byte slice")
+		return make([]byte, 0), fmt.Errorf("must have even length byte slice")
 	}
 
 	u16s := make([]uint16, 1)
@@ -96,4 +178,20 @@ func DecodeUTF16(b []byte) ([]byte, error) {
 	}
 
 	return ret.Bytes(), nil
+}
+
+type DiscordMessage struct {
+	Id          string              `json:"id"`
+	Attachments []DiscordAttachment `json:"attachments"`
+}
+
+type DiscordAttachment struct {
+	Id       string `json:"id"`
+	Filename string `json:"filename"`
+	Url      string `json:"url"`
+}
+
+type DiscordFile struct {
+	Url      string
+	ExpireAt time.Time
 }

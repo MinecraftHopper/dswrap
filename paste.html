@@ -2,8 +2,8 @@
 <html lang="en">
 
 <head>
-    <link href="https://fonts.googleapis.com/css?family=JetBrains+Mono&display=swap" rel="preload" as="style" />
-    <link href="https://fonts.googleapis.com/css?family=JetBrains+Mono&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css?family=JetBrains+Mono&display=swap" rel="preload" as="style"/>
+    <link href="https://fonts.googleapis.com/css?family=JetBrains+Mono&display=swap" rel="stylesheet"/>
     <meta charset="UTF-8">
     <meta name="robots" content="noindex">
     <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +12,7 @@
         html {
             background: #444;
         }
+
         .paste {
             font-family: "JetBrains Mono", monospace;
             margin-left: 1%;
@@ -19,6 +20,7 @@
             color: #fff;
             white-space: nowrap;
         }
+
         .options {
             font-family: "JetBrains Mono", monospace;
             text-align: center;
@@ -27,23 +29,23 @@
 </head>
 
 <body onload="onLoad()">
-    <div class="options" id="options">
-        Wrap lines <input type="checkbox" id="wrap" onclick="toggleWrap()">
-        Light mode <input type="checkbox" id="color" onclick="toggleColorMode()">
-    </div>
-    <div class="paste" id="paste">{{.}}</div>
+<div class="options" id="options">
+    Wrap lines <input type="checkbox" id="wrap" onclick="toggleWrap()">
+    Light mode <input type="checkbox" id="color" onclick="toggleColorMode()">
+</div>
+<div class="paste" id="paste">{{ .body }}</div>
 </body>
 <script>
     function toggleWrap() {
         if (document.getElementById("wrap").checked === true) {
-            document.getElementById("paste").style.whiteSpace = "break-spaces";
+            document.getElementById("paste").style.whiteSpace = "normal";
             localStorage.setItem("wrap", "yes");
-        }
-        else {
+        } else {
             document.getElementById("paste").style.whiteSpace = "nowrap";
             localStorage.setItem("wrap", "no");
         }
     }
+
     function toggleColorMode() {
         if (document.getElementById("color").checked === true) {
             document.getElementById("paste").style.color = "#000";
@@ -53,8 +55,7 @@
             document.documentElement.style.color = "#000";
             document.documentElement.style.backgroundColor = "#fff";
             localStorage.setItem("color", "light");
-        }
-        else {
+        } else {
             document.getElementById("paste").style.color = "#fff";
             document.getElementById("paste").style.backgroundColor = "#444";
             document.getElementById("options").style.color = "#fff";
@@ -64,6 +65,7 @@
             localStorage.setItem("color", "dark");
         }
     }
+
     function onLoad() {
         let wrap;
         let color;

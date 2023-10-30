@@ -1,4 +1,4 @@
-version: "3.4"
+version: "3.7"
 services:
   updatejson:
     image: ghcr.io/minecrafthopper/dswrap
@@ -6,17 +6,29 @@ services:
     networks:
       - default
       - ingress_default
+    environment:
+      DISCORD_TOKEN_FILE: "/run/secrets/discord_token"
+    secrets:
+      - discord_token
     deploy:
-      placement:
-        constraints:
-          - "node.role==manager"
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.dswrap.rule=Host(`${HOST}`)"
         - "traefik.http.routers.dswrap.entrypoints=websecure"
         - "traefik.http.routers.dswrap.tls.certresolver=myresolver"
         - "traefik.http.services.dswrap.loadbalancer.server.port=8080"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100M"
+        max-file: "5"
+
 
 networks:
   ingress_default:
+    external: true
+
+secrets:
+  discord_token:
+    name: absol_discord_token
     external: true
