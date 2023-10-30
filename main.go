@@ -10,6 +10,7 @@ import (
 	"github.com/minecrafthopper/dswrap/env"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -91,6 +92,7 @@ func getFileForMessageAttachment(channelId, messageId, filename string) (file *D
 	}
 
 	var response *http.Response
+	log.Printf("Calling %s", request.URL.String())
 	response, err = client.Do(request)
 	if err != nil {
 		return
