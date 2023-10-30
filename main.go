@@ -57,7 +57,7 @@ func handleRequest(c *gin.Context) {
 	var err error
 	var exists bool
 
-	if discordFile, exists = cache[path]; !exists || discordFile.ExpireAt.Before(time.Now()) {
+	if discordFile, exists = cache[path]; !exists || discordFile == nil || discordFile.ExpireAt.Before(time.Now()) {
 		discordFile, err = getFileForMessageAttachment(chanId, messageId, filename)
 		if err != nil {
 			return
