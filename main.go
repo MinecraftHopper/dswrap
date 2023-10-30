@@ -60,7 +60,7 @@ func handleRequest(c *gin.Context) {
 	if discordFile, exists = cache[path]; !exists || discordFile == nil || discordFile.ExpireAt.Before(time.Now()) {
 		discordFile, err = getFileForMessageAttachment(chanId, messageId, filename)
 		if err != nil {
-			return
+			panic(err)
 		}
 		cache[path] = discordFile
 	}
@@ -72,7 +72,7 @@ func handleRequest(c *gin.Context) {
 
 	contents, err := getFileFromCDN(discordFile.Url)
 	if err != nil {
-		return
+		panic(err)
 	}
 
 	escaped := template.HTMLEscapeString(string(contents))
