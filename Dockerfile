@@ -1,7 +1,7 @@
 FROM golang:alpine AS builder
 
 WORKDIR /build
-COPY ./main.go ./main.go
+COPY . .
 
 RUN go build -o dswrap github.com/minecrafthopper/dswrap
 
