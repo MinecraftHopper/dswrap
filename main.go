@@ -1,58 +1,53 @@
 package main
 
 import (
-	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/minecrafthopper/dswrap/env"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
-	"strings"
 	"time"
-	"unicode/utf16"
-	"unicode/utf8"
 )
 
-var contentTemplate *template.Template
 var client *http.Client
 
-//go:embed *.html
+//go:embed paste.html
 var pasteHtml embed.FS
-
 var cache = make(map[string]*DiscordFile)
+
+var mergedFS = http.FS(NewMergedFS(os.DirFS("."), pasteHtml))
 
 func main() {
 	client = &http.Client{}
 
 	e := gin.Default()
 
-	templ := template.Must(template.New("pastes").Delims("{{", "}}").ParseFS(pasteHtml, "*"))
-	e.SetHTMLTemplate(templ)
-
-	e.GET("/*path", handleRequest)
-	e.Run()
+	e.GET("/cdn/:channelId/:messageId/:filename", getFromCDN)
+	e.NoRoute(getRenderHTML)
+	err := e.Run()
+	if !errors.Is(err, http.ErrServerClosed) {
+		panic(err)
+	}
 }
 
-func handleRequest(c *gin.Context) {
-	path := strings.TrimPrefix(c.Param("path"), "/")
+func getFromCDN(c *gin.Context) {
+	chanId := c.Param("channelId")
+	messageId := c.Param("messageId")
+	filename := c.Param("filename")
 
-	parts := strings.Split(path, "/")
-
-	if len(parts) < 3 {
+	if chanId == "" || messageId == "" || filename == "" {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
-	chanId := parts[0]
-	messageId := parts[1]
-	filename := parts[2]
+	path := fmt.Sprintf("%s/%s/%s", chanId, messageId, filename)
 
 	var discordFile *DiscordFile
 	var err error
@@ -75,12 +70,14 @@ func handleRequest(c *gin.Context) {
 	if err != nil {
 		panic(err)
 	}
+	defer contents.Body.Close()
 
-	escaped := template.HTMLEscapeString(string(contents))
-	escaped = strings.Replace(escaped, "\n", "<br>", -1)
+	c.Header("Content-Type", contents.Header.Get("Content-Type"))
+	_, err = io.Copy(c.Writer, contents.Body)
+}
 
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.HTML(http.StatusOK, "paste.html", gin.H{"body": template.HTML(escaped)})
+func getRenderHTML(c *gin.Context) {
+	c.FileFromFS("paste.html", mergedFS)
 }
 
 func getFileForMessageAttachment(channelId, messageId, filename string) (file *DiscordFile, err error) {
@@ -138,53 +135,17 @@ func getFileForMessageAttachment(channelId, messageId, filename string) (file *D
 	return
 }
 
-func getFileFromCDN(path string) ([]byte, error) {
+func getFileFromCDN(path string) (*http.Response, error) {
 	req, err := http.Get(path)
 	if err != nil {
 		return nil, err
 	}
 
-	defer req.Body.Close()
-
 	if req.StatusCode != http.StatusOK {
 		return nil, errors.New("invalid status code: " + req.Status)
 	}
-	contents, err := io.ReadAll(req.Body)
-	if err != nil {
-		return nil, err
-	}
 
-	fileEncoding := req.Header.Get("Content-Type")
-	if strings.Contains(strings.ToLower(fileEncoding), "charset=utf-16") {
-		contents, err = DecodeUTF16(contents)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return contents, nil
-}
-
-func DecodeUTF16(b []byte) ([]byte, error) {
-	if len(b)%2 != 0 {
-		return make([]byte, 0), fmt.Errorf("must have even length byte slice")
-	}
-
-	u16s := make([]uint16, 1)
-
-	ret := &bytes.Buffer{}
-
-	b8buf := make([]byte, 4)
-
-	lb := len(b)
-	for i := 0; i < lb; i += 2 {
-		u16s[0] = uint16(b[i]) + (uint16(b[i+1]) << 8)
-		r := utf16.Decode(u16s)
-		n := utf8.EncodeRune(b8buf, r[0])
-		ret.Write(b8buf[:n])
-	}
-
-	return ret.Bytes(), nil
+	return req, nil
 }
 
 type DiscordMessage struct {
@@ -193,9 +154,10 @@ type DiscordMessage struct {
 }
 
 type DiscordAttachment struct {
-	Id       string `json:"id"`
-	Filename string `json:"filename"`
-	Url      string `json:"url"`
+	Id          string `json:"id"`
+	Filename    string `json:"filename"`
+	Url         string `json:"url"`
+	ContentType string `json:"content_type"`
 }
 
 type DiscordFile struct {

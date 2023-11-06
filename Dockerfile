@@ -1,3 +1,4 @@
+########################
 FROM golang:alpine AS builder
 
 WORKDIR /build
@@ -5,7 +6,9 @@ COPY . .
 
 RUN go build -o dswrap github.com/minecrafthopper/dswrap
 
-FROM alpine
+
+########################
+FROM alpine AS final
 
 WORKDIR /dswrap
 
