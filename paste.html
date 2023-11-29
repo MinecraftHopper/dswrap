@@ -1,173 +1,209 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Discord CDN Preview Wrapper</title>
-    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+  <title>Discord CDN Preview Wrapper</title>
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
 
-    <style>
-        .me {
-            height: 90vh;
-            overflow: hidden;
-        }
+  <style>
+      .me {
+          height: 90vh;
+          overflow: hidden;
+      }
 
-        body {
-            margin: 0;
-            padding: 0;
-        }
+      body {
+          margin: 0;
+          padding: 0;
+      }
 
-        /* Dark mode */
-        @media (prefers-color-scheme: dark) {
-            body {
-                background-color: black;
-                color: white;
-            }
-        }
+      /* Dark mode */
+      @media (prefers-color-scheme: dark) {
+          body {
+              background-color: black;
+              color: white;
+          }
+      }
 
-        /* Light mode */
-        @media (prefers-color-scheme: light) {
-            body {
-                background-color: white;
-                color: black;
-            }
-        }
-    </style>
+      /* Light mode */
+      @media (prefers-color-scheme: light) {
+          body {
+              background-color: white;
+              color: black;
+          }
+      }
+  </style>
 
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/fontawesome.min.css"
-          rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/js/fontawesome.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/js/solid.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/fontawesome.min.css"
+        rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/js/fontawesome.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/js/solid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
 </head>
 <body>
 <h1 id="filename">Previewer</h1>
 <div style="display: none" id="contents">
-    <div class="toggles">
-        <input type="checkbox" id="toggleDarkTheme" onclick="toggleTheme(this)">
-        <label for="toggleDarkTheme">Use Dark Theme</label>
+  <div class="toggles">
+    <input type="checkbox" id="toggleDarkTheme" onclick="toggleTheme(this)">
+    <label for="toggleDarkTheme">Use Dark Theme</label>
 
-        <input type="checkbox" id="toggleLineWrap" onclick="toggleLineWrap(this)">
-        <label for="toggleLineWrap">Wrap lines</label>
-    </div>
-    <br>
-    <div class="me" id="container"></div>
+    <input type="checkbox" id="toggleLineWrap" onclick="toggleLineWrap(this)">
+    <label for="toggleLineWrap">Wrap lines</label>
+
+    <input type="checkbox" id="toggleRenderer" onclick="toggleRenderer(this)">
+    <label for="toggleRenderer">Use Basic Render</label>
+  </div>
+  <br>
+  <div class="me" id="container"></div>
+  <div class="me" id="basicrender">
+    <label for="basicrenderbox"></label><textarea style="width: 90%;height: 90%" readonly
+                                                  id="basicrenderbox"></textarea>
+  </div>
 </div>
 
 <div id="spinner">
-    <i class="fa-solid fa-spinner fa-2xl fa-spin"></i>
+  <i class="fa-solid fa-spinner fa-2xl fa-spin"></i>
 </div>
 
 <script>
-    const container = document.getElementById('container');
-    let editor = undefined;
+const container = document.getElementById('container')
+let editor = undefined
 
-    let url = "/cdn" + window.location.pathname;
+let url = '/cdn' + window.location.pathname
 
-    const lightTheme = "vs";
-    const darkTheme = "vs-dark";
+const lightTheme = 'vs'
+const darkTheme = 'vs-dark'
 
-    function setButtons() {
-        const theme = getTheme()
-        if (theme === darkTheme) {
-            document.getElementById('toggleDarkTheme').checked = true;
+function setButtons () {
+  const theme = getTheme()
+  if (theme === darkTheme) {
+    document.getElementById('toggleDarkTheme').checked = true
+  }
+
+  if (localStorage.getItem('linewrap') === 'true') {
+    document.getElementById('toggleLineWrap').checked = true
+  }
+
+  if (localStorage.getItem('basicrender') === 'true') {
+    document.getElementById('toggleRenderer').checked = true
+  }
+}
+
+function toggleTheme (btn) {
+  localStorage.setItem('dark', btn.checked)
+  switchColorScheme()
+}
+
+function toggleLineWrap (btn) {
+  localStorage.setItem('linewrap', btn.checked)
+  switchLineWrap()
+}
+
+function toggleRenderer (btn) {
+  localStorage.setItem('basicrender', btn.checked)
+  switchRender()
+}
+
+function switchColorScheme () {
+  const th = getTheme()
+  monaco.editor.setTheme(getTheme())
+  if (th === lightTheme) {
+    document.getElementById('basicrenderbox').style.backgroundColor = 'white';
+    document.getElementById('basicrenderbox').style.color = 'black';
+  } else {
+    document.getElementById('basicrenderbox').style.backgroundColor = 'black';
+    document.getElementById('basicrenderbox').style.color = 'white';
+  }
+}
+
+function switchLineWrap () {
+  try {
+    if (localStorage.getItem('linewrap') === 'true') {
+      editor.updateOptions({ wordWrap: 'on' })
+    } else {
+      editor.updateOptions({ wordWrap: 'off' })
+    }
+  } catch (e) {
+    console.log(e)
+  }
+}
+
+function switchRender () {
+  if (localStorage.getItem('basicrender') === 'true') {
+    document.getElementById('container').style.display = 'none'
+    document.getElementById('basicrender').style.display = 'block'
+  } else {
+    document.getElementById('basicrender').style.display = 'none'
+    document.getElementById('container').style.display = 'block'
+  }
+}
+
+function getTheme () {
+  let theme = lightTheme
+
+  let fromStorage = localStorage.getItem('dark')
+  if (fromStorage !== '') {
+    if (fromStorage === 'true') {
+      theme = darkTheme
+    }
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    theme = darkTheme
+  }
+
+  return theme
+}
+
+function download (url) {
+  try {
+    const req = new XMLHttpRequest()
+    req.open('GET', url)
+    req.onload = () => {
+      if (req.readyState === req.DONE) {
+        if (req.status === 200) {
+          transferComplete(req)
         }
-
-        if (localStorage.getItem("linewrap") === "true") {
-            document.getElementById('toggleLineWrap').checked = true;
-        }
+      }
     }
 
-    function toggleTheme(btn) {
-        localStorage.setItem("dark", btn.checked);
-        switchColorScheme()
-    }
+    req.send()
+  } catch (error) {
+    console.error(error)
+    //return 'Failed to get file'
+  }
+}
 
-    function toggleLineWrap(btn) {
-        localStorage.setItem("linewrap", btn.checked);
-        switchLineWrap();
-    }
+function transferComplete (e) {
+  require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } })
+  require(['vs/editor/editor.main'], function () {
+    editor = monaco.editor.create(container, {
+      value: 'Loading',
+      minimap: { enabled: false },
+      automaticLayout: true,
+      readOnly: true,
+    })
 
-    function switchColorScheme() {
-        monaco.editor.setTheme(getTheme());
-    }
+    monaco.editor.setTheme(getTheme())
 
-    function switchLineWrap() {
-        try {
-            if (localStorage.getItem("linewrap") === "true") {
-                editor.updateOptions({wordWrap: "on"})
-            } else {
-                editor.updateOptions({wordWrap: "off"})
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
+    const model = monaco.editor.createModel(e.responseText, undefined, monaco.Uri.parse(url))
+    document.getElementById('basicrenderbox').value = e.responseText
 
-    function getTheme() {
-        let theme = lightTheme
+    editor.setModel(model)
 
-        let fromStorage = localStorage.getItem("dark")
-        if (fromStorage !== "") {
-            if (fromStorage === "true") {
-                theme = darkTheme
-            }
-        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            theme = darkTheme
-        }
+    console.log(`model language was changed to ${editor.getModel().getLanguageId()}`)
 
-        return theme;
-    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      switchColorScheme()
+    })
 
-    function download(url) {
-        try {
-            const req = new XMLHttpRequest();
-            req.open("GET", url);
-            req.onload = () => {
-                if (req.readyState === req.DONE) {
-                    if (req.status === 200) {
-                        transferComplete(req);
-                    }
-                }
-            };
+    switchColorScheme()
+    switchLineWrap()
+    setButtons()
+    switchRender()
 
-            req.send();
-        } catch (error) {
-            console.error(error);
-            //return 'Failed to get file'
-        }
-    }
+    document.getElementById('spinner').style.display = 'none'
+    document.getElementById('contents').style.display = 'block'
+  })
+}
 
-    function transferComplete(e) {
-        require.config({paths: {vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs'}});
-        require(["vs/editor/editor.main"], function () {
-            editor = monaco.editor.create(container, {
-                value: 'Loading',
-                minimap: {enabled: false},
-                automaticLayout: true,
-                readOnly: true,
-            });
-
-            monaco.editor.setTheme(getTheme());
-
-            const model = monaco.editor.createModel(e.responseText, undefined, monaco.Uri.parse(url));
-
-            editor.setModel(model);
-
-            console.log(`model language was changed to ${editor.getModel().getLanguageId()}`);
-
-            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-                switchColorScheme();
-            });
-
-            switchColorScheme();
-            switchLineWrap();
-            setButtons();
-
-            document.getElementById('spinner').style.display = "none";
-            document.getElementById('contents').style.display = "block";
-        });
-    }
-
-    download(url);
+download(url)
 </script>
 </body>
 </html>
